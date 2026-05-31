@@ -2,7 +2,9 @@ package com.sentrix.core.feature.service;
 
 import com.sentrix.core.feature.dto.FeatureDefinition;
 import com.sentrix.core.feature.dto.FeatureSchemaResponse;
+import com.sentrix.core.feature.dto.ModelInputFeaturesResponse;
 import com.sentrix.core.feature.dto.WindowFeaturesResponse;
+import com.sentrix.core.feature.extractor.FeatureExtractor;
 import com.sentrix.core.metric.buffer.SlidingWindowBuffer;
 import com.sentrix.core.metric.dto.CurrentMetricsResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,12 +21,17 @@ import java.util.Map;
 public class FeatureService {
 
     private final SlidingWindowBuffer slidingWindowBuffer;
+    private final FeatureExtractor featureExtractor;
 
     @Value("${sentrix.diagnosis.schema-version}")
     private String schemaVersion;
 
-    public FeatureService(SlidingWindowBuffer slidingWindowBuffer) {
+    public FeatureService(
+            SlidingWindowBuffer slidingWindowBuffer,
+            FeatureExtractor featureExtractor
+    ) {
         this.slidingWindowBuffer = slidingWindowBuffer;
+        this.featureExtractor = featureExtractor;
     }
 
     public WindowFeaturesResponse calculateWindowFeatures() {
@@ -109,6 +116,22 @@ public class FeatureService {
                 schemaVersion,
                 features.size(),
                 features
+        );
+    }
+
+    public ModelInputFeaturesResponse getModelInputFeatures() {
+        WindowFeaturesResponse windowFeaturesResponse = calculateWindowFeatures();
+
+        Map<String, Double> modelInputFeatures = featureExtractor.toModelInputFeatures(
+                windowFeaturesResponse.getFeatures()
+        );
+
+        return new ModelInputFeaturesResponse(
+                LocalDateTime.now(),
+                schemaVersion,
+                modelInputFeatures.size(),
+                windowFeaturesResponse.isReady(),
+                modelInputFeatures
         );
     }
 

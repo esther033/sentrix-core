@@ -1,6 +1,7 @@
 package com.sentrix.core.feature.controller;
 
 import com.sentrix.core.feature.dto.FeatureSchemaResponse;
+import com.sentrix.core.feature.dto.ModelInputFeaturesResponse;
 import com.sentrix.core.feature.dto.WindowFeaturesResponse;
 import com.sentrix.core.feature.service.FeatureService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,5 +24,10 @@ public class FeatureController {
     @GetMapping("/api/features/schema")
     public FeatureSchemaResponse getFeatureSchema() {
         return featureService.getFeatureSchema();
+    }
+
+    @GetMapping("/api/features/model-input")
+    public ModelInputFeaturesResponse getModelInputFeatures() {
+        return featureService.getModelInputFeatures();
     }
 }
