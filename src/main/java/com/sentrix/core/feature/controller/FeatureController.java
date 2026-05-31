@@ -1,5 +1,6 @@
 package com.sentrix.core.feature.controller;
 
+import com.sentrix.core.feature.dto.FeatureSchemaResponse;
 import com.sentrix.core.feature.dto.WindowFeaturesResponse;
 import com.sentrix.core.feature.service.FeatureService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,5 +18,10 @@ public class FeatureController {
     @GetMapping("/api/features/window")
     public WindowFeaturesResponse getWindowFeatures() {
         return featureService.calculateWindowFeatures();
+    }
+
+    @GetMapping("/api/features/schema")
+    public FeatureSchemaResponse getFeatureSchema() {
+        return featureService.getFeatureSchema();
     }
 }
