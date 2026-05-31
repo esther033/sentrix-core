@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: sentrix-core
+
+  # MySQL 데이터베이스 연결 설정
+  # demo-server랑 포트 겹치지 않게 3308로 설정
+  datasource:
+    url: jdbc:mysql://localhost:3308/sentrix?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: root
+    password: 1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # update: 엔티티 변경 시 자동으로 DDL 반영 (개발용)
+      # 운영 환경에서는 none 또는 validate로 변경할 것
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+  jackson:
+    time-zone: Asia/Seoul
+
+# sentrix-core 포트
+# demo-server: 8080, model-server: 8000 이므로 8081 사용
+server:
+  port: 8081
+
+# SentriX 커스텀 설정
+sentrix:
+  # Prometheus 연동 설정
+  # LGTM 스택의 Prometheus 주소 (grafana/otel-lgtm 컨테이너)
+  prometheus:
+    base-url: http://localhost:9090
+
+  # FastAPI ML Model Server 주소
+  model-server:
+    base-url: http://localhost:8000
+
+  # 이상탐지 파이프라인 설정
+  diagnosis:
+    # 슬라이딩 윈도우 크기 (초)
+    window-size-seconds: 300
+    # 윈도우 이동 간격 (초) - DiagnosisScheduler 실행 주기
+    step-size-seconds: 30
+    # anomaly score 임계값 (이 값 초과 시 ANOMALY 판정)
+    # Isolation Forest NORMAL 데이터 80th percentile 기준
+    threshold: 0.2716
+    # Common Feature Schema 버전
+    schema-version: v1
+
+# Swagger UI 설정
+# 서버 실행 후 http://localhost:8081/swagger-ui.html 에서 확인
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+logging:
+  level:
+    com.sentrix: DEBUG
+    org.hibernate.SQL: DEBUG
