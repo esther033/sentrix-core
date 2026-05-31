@@ -4,6 +4,7 @@ import com.sentrix.core.metric.dto.CurrentMetricsResponse;
 import com.sentrix.core.metric.dto.MetricsBufferStatusResponse;
 import com.sentrix.core.metric.service.MetricService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -18,6 +19,11 @@ public class MetricController {
     @GetMapping("/api/metrics/current")
     public CurrentMetricsResponse getCurrentMetrics() {
         return metricService.getCurrentMetrics();
+    }
+
+    @PostMapping("/api/metrics/collect")
+    public CurrentMetricsResponse collectMetrics() {
+        return metricService.collectMetrics();
     }
 
     @GetMapping("/api/metrics/buffer/status")

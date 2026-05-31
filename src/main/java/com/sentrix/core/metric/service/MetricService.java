@@ -34,10 +34,14 @@ public class MetricService {
     public CurrentMetricsResponse getCurrentMetrics() {
         Map<String, Double> features = prometheusMetricCollector.collectCurrentMetrics();
 
-        CurrentMetricsResponse currentMetrics = new CurrentMetricsResponse(
+        return new CurrentMetricsResponse(
                 LocalDateTime.now(),
                 features
         );
+    }
+
+    public CurrentMetricsResponse collectMetrics() {
+        CurrentMetricsResponse currentMetrics = getCurrentMetrics();
 
         slidingWindowBuffer.add(currentMetrics);
 
