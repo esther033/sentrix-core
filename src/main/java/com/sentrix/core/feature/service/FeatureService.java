@@ -62,6 +62,10 @@ public class FeatureService {
             windowFeatures.put(featureName + "_slope", slope(values));
         }
 
+        // 기존 latency_avg_*는 누적 평균 기반이라 최근 장애가 약하게 반영된다.
+        // 따라서 request_duration_sum_total과 request_count_total의 window delta로 다시 덮어쓴다.
+        overrideLatencyWindowFeatures(window, windowFeatures);
+
         windowFeatures.put("request_rate", calculateRequestRate(window));
 
         return new WindowFeaturesResponse(
@@ -84,6 +88,7 @@ public class FeatureService {
         sourceMetricDescriptions.put("jvm_threads_live", "JVM live thread 수");
         sourceMetricDescriptions.put("db_connections_active", "활성 DB connection 수");
         sourceMetricDescriptions.put("request_count_total", "HTTP 요청 누적 수");
+        sourceMetricDescriptions.put("request_duration_sum_total", "HTTP 요청 처리 시간 누적 합");
         sourceMetricDescriptions.put("latency_avg", "평균 HTTP 응답 시간");
         sourceMetricDescriptions.put("error_rate", "전체 요청 중 5xx 에러 비율");
 
@@ -133,6 +138,56 @@ public class FeatureService {
                 windowFeaturesResponse.isReady(),
                 modelInputFeatures
         );
+    }
+
+    private void overrideLatencyWindowFeatures(
+            List<CurrentMetricsResponse> window,
+            Map<String, Double> windowFeatures
+    ) {
+        List<Double> latencyValues = calculateWindowLatencyValues(window);
+
+        windowFeatures.put("latency_avg_mean", mean(latencyValues));
+        windowFeatures.put("latency_avg_max", max(latencyValues));
+        windowFeatures.put("latency_avg_min", min(latencyValues));
+        windowFeatures.put("latency_avg_std", std(latencyValues));
+        windowFeatures.put("latency_avg_slope", slope(latencyValues));
+    }
+
+    private List<Double> calculateWindowLatencyValues(List<CurrentMetricsResponse> window) {
+        List<Double> latencyValues = new ArrayList<>();
+
+        if (window.size() <= 1) {
+            double fallbackLatency = window.isEmpty()
+                    ? 0.0
+                    : window.get(0).getFeatures().getOrDefault("latency_avg", 0.0);
+
+            latencyValues.add(fallbackLatency);
+            return latencyValues;
+        }
+
+        for (int i = 1; i < window.size(); i++) {
+            CurrentMetricsResponse previous = window.get(i - 1);
+            CurrentMetricsResponse current = window.get(i);
+
+            double previousCount = previous.getFeatures().getOrDefault("request_count_total", 0.0);
+            double currentCount = current.getFeatures().getOrDefault("request_count_total", 0.0);
+
+            double previousSum = previous.getFeatures().getOrDefault("request_duration_sum_total", 0.0);
+            double currentSum = current.getFeatures().getOrDefault("request_duration_sum_total", 0.0);
+
+            double countDiff = currentCount - previousCount;
+            double sumDiff = currentSum - previousSum;
+
+            if (countDiff > 0 && sumDiff >= 0) {
+                latencyValues.add(sumDiff / countDiff);
+            }
+        }
+
+        if (latencyValues.isEmpty()) {
+            latencyValues.add(0.0);
+        }
+
+        return latencyValues;
     }
 
     private double mean(List<Double> values) {

@@ -39,13 +39,37 @@ public class PrometheusMetricCollector {
         features.put("jvm_memory_used", jvmMemoryUsed);
         features.put("jvm_memory_max_ratio", jvmMemoryMax > 0 ? jvmMemoryUsed / jvmMemoryMax : 0.0);
 
-        double requestCount = sumMetricByPrefix(prometheusText, "http_server_requests_seconds_count");
-        double requestSum = sumMetricByPrefix(prometheusText, "http_server_requests_seconds_sum");
+        /*
+         * HTTP request metric은 전체 uri를 합산하지 않고 /api/posts만 기준으로 계산한다.
+         *
+         * 이유:
+         * - 전체 합산 시 /actuator/prometheus, /swagger-ui, /v3/api-docs, /chaos/status 등이 섞인다.
+         * - sentrix-core가 주기적으로 /actuator/prometheus를 호출하므로 latency가 희석된다.
+         * - 현재 DB delay 실험 대상은 /api/posts이므로 해당 uri만 기준으로 latency를 계산한다.
+         */
+        double requestCount = sumHttpServerRequestsByUri(
+                prometheusText,
+                "http_server_requests_seconds_count",
+                "/api/posts"
+        );
+
+        double requestSum = sumHttpServerRequestsByUri(
+                prometheusText,
+                "http_server_requests_seconds_sum",
+                "/api/posts"
+        );
 
         features.put("request_count_total", requestCount);
+        features.put("request_duration_sum_total", requestSum);
         features.put("latency_avg", requestCount > 0 ? requestSum / requestCount : 0.0);
 
-        double errorCount = sumMetricByStatusPattern(prometheusText, "http_server_requests_seconds_count", "5");
+        double errorCount = sumHttpServerRequestsByUriAndStatusPrefix(
+                prometheusText,
+                "http_server_requests_seconds_count",
+                "/api/posts",
+                "5"
+        );
+
         features.put("error_rate", requestCount > 0 ? errorCount / requestCount : 0.0);
 
         return features;
@@ -96,7 +120,11 @@ public class PrometheusMetricCollector {
         return sum;
     }
 
-    private double sumMetricByStatusPattern(String text, String metricName, String statusPrefix) {
+    private double sumHttpServerRequestsByUri(
+            String text,
+            String metricName,
+            String uri
+    ) {
         if (text == null || text.isBlank()) {
             return 0.0;
         }
@@ -113,9 +141,47 @@ public class PrometheusMetricCollector {
                 continue;
             }
 
-            if (line.contains("status=\"" + statusPrefix)) {
-                sum += parseLastNumber(line);
+            if (!line.contains("uri=\"" + uri + "\"")) {
+                continue;
             }
+
+            sum += parseLastNumber(line);
+        }
+
+        return sum;
+    }
+
+    private double sumHttpServerRequestsByUriAndStatusPrefix(
+            String text,
+            String metricName,
+            String uri,
+            String statusPrefix
+    ) {
+        if (text == null || text.isBlank()) {
+            return 0.0;
+        }
+
+        double sum = 0.0;
+        String[] lines = text.split("\\R");
+
+        for (String line : lines) {
+            if (line.startsWith("#")) {
+                continue;
+            }
+
+            if (!line.startsWith(metricName + "{")) {
+                continue;
+            }
+
+            if (!line.contains("uri=\"" + uri + "\"")) {
+                continue;
+            }
+
+            if (!line.contains("status=\"" + statusPrefix)) {
+                continue;
+            }
+
+            sum += parseLastNumber(line);
         }
 
         return sum;

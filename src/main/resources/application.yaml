@@ -34,8 +34,8 @@ sentrix:
     base-url: http://localhost:8000
 
   diagnosis:
-    window-size-seconds: 300
-    step-size-seconds: 30
+    window-size-seconds: 60
+    step-size-seconds: 10
     threshold: 0.2716
     schema-version: v1
 
